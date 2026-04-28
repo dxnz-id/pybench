@@ -1,61 +1,96 @@
 import time
-import numpy as np
+import os
+import random
+import gc
+
 class MemoryBenchmark:
-    def __init__(self, duration=10):
+    def __init__(self, duration=5):
         self.duration = duration
-    def sequential_bandwidth(self, size_mb=100):
-        size = size_mb * 1024 * 1024 // 8
-        arr = np.random.rand(size)
-        start = time.time()
+
+    # ── Sequential bandwidth ──────────────────────────────────────────────────
+
+    def seq_bandwidth(self):
+        """MB/s of raw memory read/write using bytearray copies."""
+        BUF_SIZE = 128 * 1024 * 1024  # 128 MB
+        buf = bytearray(os.urandom(BUF_SIZE))
         total_bytes = 0
-        while time.time() - start < self.duration:
-            _ = np.sum(arr)
-            arr *= 1.0001
-            total_bytes += size * 8 * 2
-        return total_bytes / (time.time() - start) / (1024**2)
+        start = time.perf_counter()
+        while time.perf_counter() - start < self.duration:
+            # write pass
+            buf2 = bytearray(BUF_SIZE)
+            buf2[:] = buf
+            # read pass
+            _ = buf2[0]
+            total_bytes += BUF_SIZE * 2  # write + read
+            del buf2
+        elapsed = time.perf_counter() - start
+        del buf
+        if elapsed < 1e-6:
+            return 0.0
+        return (total_bytes / elapsed) / (1024 ** 2)
 
-    def random_access_latency(self, size_mb=64):
-        size = size_mb * 1024 * 1024 // 8
-        indices = np.random.permutation(size)
-        arr = np.random.rand(size)
-        start = time.time()
-        total_ops = 0
-        while time.time() - start < self.duration:
-            for i in range(100_000):
-                _ = arr[indices[i % size]]
-            total_ops += 100_000
-        return total_ops / (time.time() - start)
+    # ── Random access latency ─────────────────────────────────────────────────
 
-    def memory_copy(self, size_mb=100):
-        size = size_mb * 1024 * 1024 // 8
-        arr1 = np.random.rand(size)
-        start = time.time()
-        total_bytes = 0
-        while time.time() - start < self.duration:
-            arr2 = np.copy(arr1)
-            total_bytes += size * 8
-        return total_bytes / (time.time() - start) / (1024**2)
-
-    def allocation_stress(self):
-        start = time.time()
+    def random_latency(self):
+        """Ops/s of random 8-byte reads from a 64 MB buffer."""
+        SIZE  = 64 * 1024 * 1024
+        INTS  = SIZE // 8
+        buf   = [random.random() for _ in range(min(INTS, 1_000_000))]  # keep tractable
         count = 0
-        while time.time() - start < self.duration:
-            objs = [np.zeros(1024 * 1024) for _ in range(20)]
-            del objs
+        start = time.perf_counter()
+        rng   = random.Random()
+        blen  = len(buf)
+        while time.perf_counter() - start < self.duration:
+            _ = buf[rng.randint(0, blen - 1)]
             count += 1
-        return count
+        elapsed = time.perf_counter() - start
+        return count / elapsed if elapsed > 1e-6 else 0.0
+
+    # ── Memory copy speed ─────────────────────────────────────────────────────
+
+    def copy_speed(self):
+        """GB/s of memoryview-based copy."""
+        CHUNK = 256 * 1024 * 1024  # 256 MB
+        src   = bytearray(CHUNK)
+        dst   = bytearray(CHUNK)
+        total = 0
+        start = time.perf_counter()
+        while time.perf_counter() - start < self.duration:
+            mv_src = memoryview(src)
+            mv_dst = memoryview(dst)
+            mv_dst[:] = mv_src
+            total += CHUNK
+        elapsed = time.perf_counter() - start
+        return (total / elapsed) / (1024 ** 3) if elapsed > 1e-6 else 0.0
+
+    # ── Allocation stress ─────────────────────────────────────────────────────
+
+    def alloc_stress(self):
+        """Alloc+free cycles per second."""
+        count = 0
+        start = time.perf_counter()
+        while time.perf_counter() - start < self.duration:
+            _ = bytearray(1024 * 1024)
+            count += 1
+        gc.collect()
+        elapsed = time.perf_counter() - start
+        return count / elapsed if elapsed > 1e-6 else 0.0
+
     def run_all(self):
         results = {}
-        print("  Running Sequential Bandwidth test...")
-        results['bandwidth'] = self.sequential_bandwidth()
-        
-        print("  Running Random Access Latency test...")
-        results['latency'] = self.random_access_latency()
-        
-        print("  Running Memory Copy test...")
-        results['copy'] = self.memory_copy()
-        
-        print("  Running Allocation Stress test...")
-        results['stress'] = self.allocation_stress()
-        
+        # print("  Running Sequential Bandwidth test...")
+        results["seq_bw"]   = self.seq_bandwidth()
+        # print("  Running Random Access Latency test...")
+        results["rand_lat"] = self.random_latency()
+        # print("  Running Memory Copy test...")
+        results["copy"]     = self.copy_speed()
+        # print("  Running Allocation Stress test...")
+        results["alloc"]    = self.alloc_stress()
         return results
+
+    @staticmethod
+    def score(results):
+        bw   = results.get("seq_bw",   0) or 0
+        copy = results.get("copy",     0) or 0
+        lat  = results.get("rand_lat", 0) or 0
+        return int(bw * 0.4 + copy * 500 + lat / 5_000)

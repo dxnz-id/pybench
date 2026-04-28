@@ -26,13 +26,25 @@ class Exporter:
         except:
             info['cpu'] = platform.processor()
             
+        import psutil
+        info['cpu_cores'] = psutil.cpu_count(logical=False)
+        info['cpu_threads'] = psutil.cpu_count(logical=True)
+        try:
+            freq = psutil.cpu_freq()
+            info['cpu_base_clock'] = f"{freq.max:.2f} MHz" if freq and freq.max > 0 else f"{freq.current:.2f} MHz" if freq else "Unknown"
+        except:
+            pass
+
         mem = platform.uname()
-        info['ram'] = f"{round(os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES') / (1024.**3) if hasattr(os, 'sysconf') else 0, 2)} GB"
-        # Windows fallback for RAM if sysconf fails
-        if info['ram'] == "0.0 GB":
-            import psutil
-            info['ram'] = f"{round(psutil.virtual_memory().total / (1024.**3), 2)} GB"
+        info['ram'] = f"{round(psutil.virtual_memory().total / (1024.**3), 2)} GB"
         info['os'] = f"{platform.system()} {platform.release()}"
+        info['python_version'] = platform.python_version()
+
+        try:
+            disk = psutil.disk_usage(os.path.abspath(os.sep))
+            info['disk_total'] = f"{round(disk.total / (1024.**3), 2)} GB"
+        except:
+            pass
         
         # GPU info
         info['gpu'] = "No GPU found"
@@ -45,6 +57,8 @@ class Exporter:
                 info['gpu'] = pynvml.nvmlDeviceGetName(handle)
                 if isinstance(info['gpu'], bytes):
                     info['gpu'] = info['gpu'].decode('utf-8')
+                mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
+                info['gpu_vram'] = f"{round(mem_info.total / (1024.**2), 2)} MB"
             except:
                 pass
         
@@ -62,6 +76,36 @@ class Exporter:
             except:
                 pass
         
+        # 3. Windows WMI Generic fallback
+        if info['gpu'] == "No GPU found" and platform.system() == "Windows":
+            try:
+                import wmi
+                w = wmi.WMI()
+                gpus = w.Win32_VideoController()
+                if gpus:
+                    info['gpu'] = " / ".join(list(set(g.Name for g in gpus)))
+            except:
+                pass
+
+        # 4. Linux lspci fallback (for Intel/AMD iGPUs)
+        if info['gpu'] == "No GPU found" and platform.system() == "Linux":
+            try:
+                import subprocess
+                out = subprocess.check_output("lspci | grep -i 'vga\\|3d\\|display'", shell=True, text=True)
+                gpus = []
+                for line in out.strip().split('\n'):
+                    # Output looks like: "00:02.0 VGA compatible controller: Intel Corporation Alder Lake-P Integrated Graphics Controller (rev 0c)"
+                    if ":" in line:
+                        parts = line.split(":", 2)
+                        if len(parts) >= 3:
+                            name = parts[2].strip()
+                            # remove generic prefixes like 'Intel Corporation' if you want, but raw is fine.
+                            gpus.append(name)
+                if gpus:
+                    info['gpu'] = " / ".join(gpus)
+            except:
+                pass
+
         return info
     def export(self, results, system_monitor_data, scores):
         run_id = time.strftime("%Y%m%d_%H%M%S")

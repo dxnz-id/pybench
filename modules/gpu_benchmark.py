@@ -1,95 +1,115 @@
 import time
-import numpy as np
+import math
+
 try:
     import pyopencl as cl
-    import pyopencl.array as cl_array
     HAS_OPENCL = True
-except ImportError:
+except Exception:
     HAS_OPENCL = False
+
 class GPUBenchmark:
-    def __init__(self, duration=10):
-        global HAS_OPENCL
-        self.duration = duration
-        self.ctx = None
-        self.queue = None
-        self.device_name = "CPU Fallback"
-        
-        if HAS_OPENCL:
-            try:
-                platforms = cl.get_platforms()
-                for p in platforms:
-                    gpu_devices = p.get_devices(device_type=cl.device_type.GPU)
-                    if gpu_devices:
-                        # Success, found a GPU (could be Integrated or Dedicated)
-                        self.ctx = cl.Context([gpu_devices[0]])
-                        self.queue = cl.CommandQueue(self.ctx)
-                        self.device_name = gpu_devices[0].name
-                        break
-            except Exception as e:
-                HAS_OPENCL = False
-    def gpu_compute(self, size=2048):
-        start = time.time()
-        ops = 0
-        if not HAS_OPENCL or not self.ctx:
-            # Fallback to Numpy (CPU)
-            while time.time() - start < self.duration:
-                a = np.random.rand(size, size).astype(np.float32)
-                b = np.random.rand(size, size).astype(np.float32)
-                np.dot(a, b)
-                ops += (2 * size**3)
-            return ops / (time.time() - start) / (10**9)
+    def __init__(self, duration=5):
+        self.duration    = duration
+        self.opencl_ok   = False
+        self.ctx         = None
+        self.queue       = None
+        self._init_opencl()
 
-        # OpenCL implementation
-        a_np = np.random.rand(size, size).astype(np.float32)
-        b_np = np.random.rand(size, size).astype(np.float32)
-        a_g = cl_array.to_device(self.queue, a_np)
-        b_g = cl_array.to_device(self.queue, b_np)
-        res_g = cl_array.empty_like(a_g)
-        prg = cl.Program(self.ctx, """
-        __kernel void stress(__global float *a, __global float *b, __global float *res) {
-          int i = get_global_id(0);
-          float val = a[i];
-          for(int j=0; j<100; j++) {
-            val = sqrt(val * val + b[i]);
-          }
-          res[i] = val;
-        }
-        """).build()
-        
-        # Create kernel object once to avoid RepeatedKernelRetrieval warning
-        stress_kernel = prg.stress
-        
-        while time.time() - start < self.duration:
-            stress_kernel(self.queue, (size*size,), None, a_g.data, b_g.data, res_g.data)
-            self.queue.finish()
-            ops += (size*size * 100)
-        
-        return ops / (time.time() - start) / 10**6
+    def _init_opencl(self):
+        if not HAS_OPENCL:
+            return
+        try:
+            platforms = cl.get_platforms()
+            if not platforms:
+                return
+            devices = platforms[0].get_devices()
+            if not devices:
+                return
+            self.ctx   = cl.Context(devices=[devices[0]])
+            self.queue = cl.CommandQueue(self.ctx)
+            self.opencl_ok = True
+        except Exception:
+            pass
 
-    def vram_bandwidth(self, size_mb=100):
-        if not HAS_OPENCL or not self.ctx:
-            return 0
-        data = np.random.rand(size_mb * 1024 * 1024 // 4).astype(np.float32)
-        start = time.time()
-        total_mb = 0
-        while time.time() - start < self.duration:
-            buf = cl.Buffer(self.ctx, cl.mem_flags.READ_WRITE | cl.mem_flags.COPY_HOST_PTR, hostbuf=data)
-            cl.enqueue_copy(self.queue, data, buf)
-            self.queue.finish()
-            total_mb += size_mb * 2 # Upload + Download
-        return total_mb / (time.time() - start)
+    # ── GPU compute (OpenCL) ──────────────────────────────────────────────────
+
+    def compute(self):
+        if not self.opencl_ok:
+            return self._cpu_fallback_compute()
+        try:
+            import numpy as np
+            import pyopencl.array as cla
+            SIZE = 1024 * 1024
+            src  = cla.to_device(self.queue, np.random.rand(SIZE).astype(np.float32))
+            dst  = cla.empty_like(src)
+            prog = cl.Program(self.ctx, """
+                __kernel void compute(__global float* src, __global float* dst) {
+                    int i = get_global_id(0);
+                    dst[i] = sqrt(src[i]) * log(src[i] + 1.0f) * sin(src[i]);
+                }
+            """).build()
+            count = 0
+            start = time.perf_counter()
+            while time.perf_counter() - start < self.duration:
+                prog.compute(self.queue, (SIZE,), None, src.data, dst.data)
+                self.queue.finish()
+                count += 1
+            elapsed = time.perf_counter() - start
+            return (count * SIZE) / elapsed / 1e6
+        except Exception:
+            return self._cpu_fallback_compute()
+
+    def _cpu_fallback_compute(self):
+        """Scalar math fallback when no GPU is available."""
+        SIZE = 10_000
+        count = 0
+        start = time.perf_counter()
+        while time.perf_counter() - start < self.duration:
+            for i in range(1, SIZE):
+                _ = math.sqrt(i) * math.log(i + 1) * math.sin(i)
+            count += 1
+        elapsed = time.perf_counter() - start
+        return (count * SIZE) / elapsed / 1e6
+
+    # ── VRAM bandwidth ────────────────────────────────────────────────────────
+
+    def vram_bandwidth(self):
+        """Returns MB/s or None when OpenCL is unavailable."""
+        if not self.opencl_ok:
+            return None          # ← None, not 0
+        try:
+            import numpy as np
+            SIZE   = 256 * 1024 * 1024  # 256 MB
+            data   = np.random.rand(SIZE // 4).astype(np.float32)
+            total  = 0
+            start  = time.perf_counter()
+            while time.perf_counter() - start < self.duration:
+                buf = cl.Buffer(self.ctx, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
+                                hostbuf=data)
+                out = np.empty_like(data)
+                cl.enqueue_copy(self.queue, out, buf)
+                self.queue.finish()
+                total += SIZE
+                del buf
+            elapsed = time.perf_counter() - start
+            return (total / elapsed) / (1024 ** 2) if elapsed > 1e-6 else None
+        except Exception:
+            return None
+
     def run_all(self):
         results = {}
-        if not HAS_OPENCL or not self.ctx:
-            print("  [WARNING] OpenCL not found or initialization failed. Using CPU fallback for GPU tests.")
-        
-        print("  Running GPU Compute test...")
-        results['compute'] = self.gpu_compute()
-        
-        print("  Running VRAM Bandwidth test...")
-        results['vram_bandwidth'] = self.vram_bandwidth()
-        
-        # GPU Stress is just running compute for longer
-        results['stress'] = results['compute'] * 0.95 # Simple placeholder
-        
+        if not self.opencl_ok:
+            # print("  [WARNING] OpenCL not found or initialization failed. Using CPU fallback for GPU tests.")
+            pass
+        # print("  Running GPU Compute test...")
+        results["compute"]   = self.compute()
+        # print("  Running VRAM Bandwidth test...")
+        results["vram_bw"]   = self.vram_bandwidth()   # may be None
+        results["opencl_ok"] = self.opencl_ok
         return results
+
+    @staticmethod
+    def score(results):
+        compute = results.get("compute", 0) or 0
+        vram    = results.get("vram_bw", 0) or 0
+        return int(compute * 5 + vram * 0.1)

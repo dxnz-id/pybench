@@ -2,13 +2,10 @@ import time
 import threading
 import os
 import psutil
-import GPUtil as gputil
-try:
-    import pynvml
-    pynvml.nvmlInit()
-    HAS_NVML = True
-except Exception:
-    HAS_NVML = False
+import platform
+import subprocess
+import re
+
 class SystemMonitor(threading.Thread):
     def __init__(self, interval=1.0):
         super().__init__()
@@ -16,13 +13,107 @@ class SystemMonitor(threading.Thread):
         self._stop_event = threading.Event()
         self.metrics = []
         self.daemon = True
+
+    @staticmethod
+    def _get_cpu_temp():
+        """Return CPU temperature in °C, or 0 if unavailable."""
+        try:
+            temps = psutil.sensors_temperatures()
+            for key in ("coretemp", "k10temp", "cpu_thermal", "acpitz", "zenpower"):
+                if key in temps and temps[key]:
+                    return temps[key][0].current
+        except Exception:
+            pass
+
+        if platform.system() == "Linux":
+            try:
+                import glob
+                zones = glob.glob("/sys/class/thermal/thermal_zone*/temp")
+                readings = []
+                for z in zones:
+                    with open(z) as f:
+                        t = int(f.read().strip()) / 1000.0
+                    if 10.0 < t < 110.0:
+                        readings.append(t)
+                if readings:
+                    return max(readings)
+            except Exception:
+                pass
+
+            try:
+                out = subprocess.check_output(["sensors"], text=True, timeout=3,
+                                              stderr=subprocess.DEVNULL)
+                m = re.search(r"(?:Core 0|Tdie|Tctl).*?\+(\d+\.\d+)\s*°C", out)
+                if m:
+                    return float(m.group(1))
+            except Exception:
+                pass
+
+        if platform.system() == "Windows":
+            try:
+                import wmi
+                w = wmi.WMI(namespace="root\\OpenHardwareMonitor")
+                for sensor in w.Sensor():
+                    if sensor.SensorType == "Temperature" and "CPU" in sensor.Name:
+                        return float(sensor.Value)
+            except Exception:
+                pass
+
+            try:
+                import wmi
+                w = wmi.WMI(namespace="root\\cimv2")
+                for item in w.Win32_PerfFormattedData_Counters_ThermalZoneInformation():
+                    t = (float(item.Temperature) - 2732) / 10.0
+                    if 10.0 < t < 110.0:
+                        return t
+            except Exception:
+                pass
+
+        return 0
+
+    @staticmethod
+    def _get_gpu_stats():
+        """Return (usage%, temp°C, vram_mb) or (None, None, None)."""
+        try:
+            out = subprocess.check_output(
+                ["nvidia-smi",
+                 "--query-gpu=utilization.gpu,temperature.gpu,memory.used",
+                 "--format=csv,noheader,nounits"],
+                text=True, timeout=3, stderr=subprocess.DEVNULL)
+            parts = out.strip().split(",")
+            if len(parts) >= 3:
+                return float(parts[0]), float(parts[1]), float(parts[2])
+        except Exception:
+            pass
+
+        if platform.system() == "Windows":
+            try:
+                import wmi
+                w = wmi.WMI(namespace="root\\OpenHardwareMonitor")
+                usage = temp = vram = None
+                for s in w.Sensor():
+                    n = s.Name.lower()
+                    if s.SensorType == "Load" and "gpu" in n:
+                        usage = float(s.Value)
+                    elif s.SensorType == "Temperature" and "gpu" in n:
+                        temp = float(s.Value)
+                    elif s.SensorType == "SmallData" and "gpu memory used" in n:
+                        vram = float(s.Value)
+                if any(v is not None for v in (usage, temp, vram)):
+                    return usage, temp, vram
+            except Exception:
+                pass
+
+        return None, None, None
+
     def stop(self):
         self._stop_event.set()
+
     def run(self):
-        # Initial net/io counters for delta calculation
         last_net = psutil.net_io_counters()
         last_disk = psutil.disk_io_counters()
         last_time = time.time()
+        
         while not self._stop_event.is_set():
             current_time = time.time()
             dt = current_time - last_time
@@ -30,70 +121,27 @@ class SystemMonitor(threading.Thread):
             
             # CPU
             cpu_usage = psutil.cpu_percent(interval=None)
-            cpu_freq = psutil.cpu_freq().current if psutil.cpu_freq() else 0
+            cpu_freq_obj = psutil.cpu_freq()
+            cpu_freq = cpu_freq_obj.current if cpu_freq_obj else 0
             cpu_cores = psutil.cpu_percent(interval=None, percpu=True)
+            cpu_temp = self._get_cpu_temp()
             
             # RAM
             mem = psutil.virtual_memory()
             
-            # GPU (NVIDIA)
+            # GPU
+            gpu_u, gpu_t, gpu_v = self._get_gpu_stats()
             gpu_data = []
-            if HAS_NVML:
-                try:
-                    deviceCount = pynvml.nvmlDeviceGetCount()
-                    for i in range(deviceCount):
-                        handle = pynvml.nvmlDeviceGetHandleByIndex(i)
-                        util = pynvml.nvmlDeviceGetUtilizationRates(handle)
-                        mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
-                        temp = pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
-                        try:
-                            power = pynvml.nvmlDeviceGetPowerUsage(handle) / 1000.0
-                        except:
-                            power = 0
-                        gpu_data.append({
-                            "usage": util.gpu,
-                            "vram_used": mem_info.used / (1024**2),
-                            "vram_total": mem_info.total / (1024**2),
-                            "temp": temp,
-                            "power": power,
-                            "name": pynvml.nvmlDeviceGetName(handle)
-                        })
-                except:
-                    pass
-            
-            # Windows Generic GPU Fallback (for Intel/AMD iGPU)
-            if not gpu_data and os.name == 'nt':
-                try:
-                    import subprocess
-                    # Query performance counters for all GPU engines and sum them up
-                    cmd = 'powershell -Command "Get-Counter \'\\GPU Engine(*)\\Utilization Percentage\' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty CounterSamples | Measure-Object -Property CookedValue -Sum | Select-Object -ExpandProperty Sum"'
-                    output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT).decode().strip()
-                    if output:
-                        gpu_data.append({
-                            "usage": min(100.0, float(output)), # Cap at 100
-                            "vram_used": 0, # Difficult to get generic shared vram
-                            "vram_total": 0,
-                            "temp": 0,
-                            "power": 0,
-                            "name": "Generic GPU"
-                        })
-                except:
-                    pass
+            if gpu_u is not None:
+                gpu_data.append({
+                    "usage": gpu_u,
+                    "vram_used": gpu_v if gpu_v is not None else 0,
+                    "vram_total": 0,
+                    "temp": gpu_t if gpu_t is not None else 0,
+                    "power": 0,
+                    "name": "GPU"
+                })
 
-            if not gpu_data and gputil:
-                try:
-                    gpus = gputil.getGPUs()
-                    for g in gpus:
-                        gpu_data.append({
-                            "usage": g.load * 100,
-                            "vram_used": g.memoryUsed,
-                            "vram_total": g.memoryTotal,
-                            "temp": g.temperature,
-                            "power": 0,
-                            "name": g.name
-                        })
-                except:
-                    pass
             # Disk
             curr_disk = psutil.disk_io_counters()
             disk_read_speed = (curr_disk.read_bytes - last_disk.read_bytes) / dt
@@ -104,31 +152,6 @@ class SystemMonitor(threading.Thread):
             net_download = (curr_net.bytes_recv - last_net.bytes_recv) / dt
             net_upload = (curr_net.bytes_sent - last_net.bytes_sent) / dt
             
-            # Temperature (Fallback for CPU)
-            cpu_temp = 0
-            try:
-                temps = psutil.sensors_temperatures()
-                if temps:
-                    # Linux/Mac standard
-                    for name, entries in temps.items():
-                        if entries:
-                            cpu_temp = entries[0].current
-                            break
-                
-                # Windows Fallback via WMI/PowerShell
-                if cpu_temp == 0 and os.name == 'nt':
-                    try:
-                        import subprocess
-                        # Querying WMI for ThermalZoneTemperature (Kelvin * 10)
-                        cmd = 'powershell -ExecutionPolicy Bypass -Command "Get-WmiObject MSAcpi_ThermalZoneTemperature -Namespace root/wmi | Select-Object -ExpandProperty CurrentTemperature"'
-                        output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT).decode().strip()
-                        if output:
-                            # Convert from decikelvin to Celsius
-                            cpu_temp = (float(output) / 10.0) - 273.15
-                    except:
-                        pass
-            except:
-                pass
             snapshot = {
                 "timestamp": current_time,
                 "cpu": {
@@ -155,12 +178,12 @@ class SystemMonitor(threading.Thread):
             
             self.metrics.append(snapshot)
             
-            # Update last state
             last_net = curr_net
             last_disk = curr_disk
             last_time = current_time
             
             time.sleep(self.interval)
+
     def get_latest_snapshot(self):
         return self.metrics[-1] if self.metrics else None
 

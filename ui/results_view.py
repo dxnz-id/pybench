@@ -23,21 +23,23 @@ def display_results(results, scores, metrics, report_path):
 
     if 'memory' in results:
         m = results['memory']
-        detail_table.add_row("MEMORY", "Sequential Bandwidth", mb_format(m.get('seq_bandwidth', 0)))
-        detail_table.add_row("MEMORY", "Random Access Latency", f"{m.get('latency', 0):.2f} Ops/s")
+        detail_table.add_row("MEMORY", "Sequential Bandwidth", mb_format(m.get('seq_bw', 0)))
+        detail_table.add_row("MEMORY", "Random Access Latency", f"{m.get('rand_lat', 0):.2f} Ops/s")
         detail_table.add_row("MEMORY", "Memory Copy Speed", mb_format(m.get('copy', 0)))
         detail_table.add_section()
 
     if 'cpu' in results:
         c = results['cpu']
-        detail_table.add_row("CPU", "Multi-thread (Math)", f"{c.get('multi_thread', 0):,} Ops")
-        detail_table.add_row("CPU", "Single-thread (Math)", f"{c.get('single_thread', 0):,} Ops")
+        detail_table.add_row("CPU", "Multi-thread (Math)", f"{c.get('multi', 0):,} Ops")
+        detail_table.add_row("CPU", "Single-thread (Math)", f"{c.get('single', 0):,} Ops")
         detail_table.add_section()
 
     if 'gpu' in results:
         g = results['gpu']
-        detail_table.add_row("GPU", "Compute Performance", f"{g.get('compute', 0):.2f} MOps/s")
-        detail_table.add_row("GPU", "VRAM Bandwidth", mb_format(g.get('vram', 0)))
+        comp = g.get('compute')
+        vram = g.get('vram_bw')
+        detail_table.add_row("GPU", "Compute Performance", f"{comp:.2f} MOps/s" if comp is not None else "N/A")
+        detail_table.add_row("GPU", "VRAM Bandwidth", mb_format(vram) if vram is not None else "N/A")
         detail_table.add_section()
 
     console.print(detail_table)
