@@ -21,8 +21,11 @@ class StatsDisplay:
             d = snapshot['disk']
             content = f"Read: [bold green]{d['read_speed']/(1024**2):.2f} MB/s[/] | Write: [bold green]{d['write_speed']/(1024**2):.2f} MB/s[/]"
         elif self.active_component == "GPU":
-            g = snapshot['gpu'][0] if snapshot['gpu'] else {"usage":0, "temp":0, "vram_used":0}
-            content = f"Usage: [bold green]{g['usage']}%[/] | Temp: [bold red]{g['temp']}°C[/] | VRAM: {g['vram_used']:.0f} MB"
+            if snapshot['gpu']:
+                g = snapshot['gpu'][0]
+                content = f"Usage: [bold green]{g['usage']}%[/] | Temp: [bold red]{g['temp']}°C[/] | VRAM: {g['vram_used']:.0f} MB"
+            else:
+                content = "GPU Sensor N/A"
         else:
             content = "Waiting for benchmark to start..."
         

@@ -67,8 +67,12 @@ def display_results(results, scores, metrics, report_path):
     r = metrics.get('ram', {})
     stats_table.add_row("RAM", f"Usage: [bold]{r.get('avg',0)}%[/] ({r.get('min',0)}% - {r.get('max',0)}%)")
 
-    g, gt, gv = metrics.get('gpu', {}), metrics.get('gpu_temp', {}), metrics.get('gpu_vram', {})
-    stats_table.add_row("GPU", f"Usage: [bold]{g.get('avg',0)}%[/] | Temp: [bold]{gt.get('avg',0):.1f}°[/] | VRAM: [bold]{gv.get('avg',0):.0f}MB[/]")
+    g = metrics.get('gpu')
+    if g:
+        gt, gv = metrics.get('gpu_temp'), metrics.get('gpu_vram')
+        stats_table.add_row("GPU", f"Usage: [bold]{g.get('avg',0)}%[/] | Temp: [bold]{gt.get('avg',0):.1f}°[/] | VRAM: [bold]{gv.get('avg',0):.0f}MB[/]")
+    else:
+        stats_table.add_row("GPU", "N/A (No GPU Sensor detected)")
 
     console.print(stats_table)
     console.print(f"\n[bold white]📂 Report:[/] [dim]{report_path}[/dim]")

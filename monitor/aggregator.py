@@ -3,7 +3,7 @@ def aggregate_metrics(metrics_list):
     if not metrics_list:
         return {}
     def get_stats(data):
-        if not data: return {"avg": 0, "min": 0, "max": 0, "std_dev": 0}
+        if not data: return None
         return {
             "avg": round(statistics.mean(data), 2),
             "min": round(min(data), 2),
