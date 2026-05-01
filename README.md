@@ -110,6 +110,7 @@ pybench/
 ├── pyproject.toml           # Modern Python packaging (uv/build)
 ├── uv.lock                  # Lockfile for reproducible environments
 ├── CONTRIBUTING.md          # Guidelines for contributing to PyBench
+├── CODE_OF_CONDUCT.md       # Rules for community behavior
 │
 ├── modules/
 │   ├── cpu_benchmark.py     # Single/multi-thread, compression, encryption, prime sieve
@@ -139,20 +140,24 @@ pybench/
 
 ## Installation
 
-**Requirements:** Python 3.12+, pip
+PyBench uses `uv` for lightning-fast and reproducible environment management.
+
+**Requirements:** Python 3.12+, `uv` (recommended)
 
 ```bash
 # 1. Clone the repository
 git clone https://github.com/dxnz-id/pybench.git
 cd pybench
 
-# 2. (Recommended) Create a virtual environment
-python -m venv .venv
-source .venv/bin/activate      # Windows: .venv\Scripts\activate
+# 2. Setup environment and install dependencies
+uv venv
+uv sync
 
-# 3. Install dependencies
-pip install -r requirements.txt
+# 3. Run the application
+uv run python main.py
 ```
+
+*(Alternatively, you can use standard Python: `python -m venv .venv` and `pip install -r requirements.txt`)*
 
 > **Note — OpenCL:** GPU benchmarking requires OpenCL drivers.
 >
@@ -193,6 +198,8 @@ Results are automatically saved to `results/run_<timestamp>.json`.
 All tests use a **time-bounded loop** pattern: each sub-test runs for a fixed duration (`DEFAULT_DURATION`, default **10 seconds**) and scores by counting how many operations were completed — not by measuring how long a fixed task takes.
 
 ---
+
+
 
 ### CPU
 
@@ -415,6 +422,27 @@ If you find PyBench useful and would like to support its development, you can bu
 <a href="https://www.ko-fi.com/dxnzid">
   <img src="https://cdn.ko-fi.com/cdn/kofi3.png?v=3" width="160" alt="Support on Ko-fi" />
 </a>
+
+---
+
+## Future Roadmap
+
+1. **Detailed Reporting**: HTML / PDF export for benchmark results.
+2. **Network Benchmark**: Latency and bandwidth tests for internet/LAN.
+3. **Hardware Database**: Online leaderboard to compare your scores.
+4. **macOS Support**: Adding Apple Silicon (M1/M2/M3) specific fallback sensors.
+
+---
+
+## Contributing
+
+We welcome contributions from the community! Whether it's adding a new benchmark module, optimizing existing code, or fixing bugs, please read our [Contributing Guidelines](CONTRIBUTING.md) before opening a Pull Request to ensure your changes align with PyBench's architecture.
+
+---
+
+## Code of Conduct
+
+Please note that this project is released with a [Code of Conduct](CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
 
 ---
 
