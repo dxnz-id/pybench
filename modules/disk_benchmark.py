@@ -84,6 +84,7 @@ class DiskBenchmark:
                     f.write(data)
                     count += 1
                 f.flush()
+                os.fsync(f.fileno())
             elapsed = time.perf_counter() - start
             return count / elapsed if elapsed > 1e-6 else 0.0
 

@@ -55,7 +55,7 @@ class CPUBenchmark:
         count = 0
         start = time.perf_counter()
         while time.perf_counter() - start < self.duration:
-            hashlib.pbkdf2_hmac("sha256", data[:16], key, 1)
+            hashlib.pbkdf2_hmac("sha256", data, key, 1)
             count += 1
         return count
 
