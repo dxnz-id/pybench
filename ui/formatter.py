@@ -3,9 +3,11 @@ from rich.panel import Panel
 
 console = Console()
 
+
 def log(category, message, style="white", verbose=False):
     if verbose:
         console.print(f"[[bold {style}]{category:^8}[/]] {message}")
+
 
 def show_welcome():
     welcome_text = """
@@ -20,6 +22,7 @@ def show_welcome():
 [dim]Enter numbers separated by comma (e.g. 1,3) or 'all' to run.[/dim]
 """
     console.print(Panel(welcome_text, expand=False, border_style="blue"))
+
 
 def mb_format(val):
     if val >= 1024:

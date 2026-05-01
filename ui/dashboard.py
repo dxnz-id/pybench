@@ -1,5 +1,6 @@
 from rich.panel import Panel
 
+
 class StatsDisplay:
     def __init__(self, monitor):
         self.monitor = monitor
@@ -9,7 +10,7 @@ class StatsDisplay:
         snapshot = self.monitor.get_latest_snapshot()
         if not snapshot:
             return Panel("Initializing sensors...", title="System Stats", border_style="dim")
-        
+
         content = ""
         if self.active_component == "CPU":
             c = snapshot['cpu']
@@ -28,5 +29,5 @@ class StatsDisplay:
                 content = "GPU Sensor N/A"
         else:
             content = "Waiting for benchmark to start..."
-        
+
         return Panel(content, title=f"📊 {self.active_component} Real-time Monitoring", border_style="bright_blue", expand=False)

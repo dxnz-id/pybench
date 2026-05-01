@@ -7,12 +7,13 @@ try:
 except Exception:
     HAS_OPENCL = False
 
+
 class GPUBenchmark:
     def __init__(self, duration=5):
-        self.duration    = duration
-        self.opencl_ok   = False
-        self.ctx         = None
-        self.queue       = None
+        self.duration = duration
+        self.opencl_ok = False
+        self.ctx = None
+        self.queue = None
         self._init_opencl()
 
     def _init_opencl(self):
@@ -25,7 +26,7 @@ class GPUBenchmark:
             devices = platforms[0].get_devices()
             if not devices:
                 return
-            self.ctx   = cl.Context(devices=[devices[0]])
+            self.ctx = cl.Context(devices=[devices[0]])
             self.queue = cl.CommandQueue(self.ctx)
             self.opencl_ok = True
         except Exception:
@@ -40,8 +41,9 @@ class GPUBenchmark:
             import numpy as np
             import pyopencl.array as cla
             SIZE = 1024 * 1024
-            src  = cla.to_device(self.queue, np.random.rand(SIZE).astype(np.float32))
-            dst  = cla.empty_like(src)
+            src = cla.to_device(
+                self.queue, np.random.rand(SIZE).astype(np.float32))
+            dst = cla.empty_like(src)
             prog = cl.Program(self.ctx, """
                 __kernel void compute(__global float* src, __global float* dst) {
                     int i = get_global_id(0);
@@ -79,10 +81,10 @@ class GPUBenchmark:
             return None          # ← None, not 0
         try:
             import numpy as np
-            SIZE   = 256 * 1024 * 1024  # 256 MB
-            data   = np.random.rand(SIZE // 4).astype(np.float32)
-            total  = 0
-            start  = time.perf_counter()
+            SIZE = 256 * 1024 * 1024  # 256 MB
+            data = np.random.rand(SIZE // 4).astype(np.float32)
+            total = 0
+            start = time.perf_counter()
             while time.perf_counter() - start < self.duration:
                 buf = cl.Buffer(self.ctx, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR,
                                 hostbuf=data)
@@ -100,14 +102,15 @@ class GPUBenchmark:
         results = {}
         if not self.opencl_ok:
             if verbose:
-                print("  [WARNING] OpenCL not found or initialization failed. Using CPU fallback for GPU tests.")
+                print(
+                    "  [WARNING] OpenCL not found or initialization failed. Using CPU fallback for GPU tests.")
             pass
         if verbose:
             print("  Running GPU Compute test...")
-        results["compute"]   = self.compute()
+        results["compute"] = self.compute()
         if verbose:
             print("  Running VRAM Bandwidth test...")
-        results["vram_bw"]   = self.vram_bandwidth()   # may be None
+        results["vram_bw"] = self.vram_bandwidth()   # may be None
         results["opencl_ok"] = self.opencl_ok
         if verbose:
             print("  " + "="*50)
@@ -116,5 +119,5 @@ class GPUBenchmark:
     @staticmethod
     def score(results):
         compute = results.get("compute", 0) or 0
-        vram    = results.get("vram_bw", 0) or 0
+        vram = results.get("vram_bw", 0) or 0
         return int(compute * 5 + vram * 0.1)

@@ -4,6 +4,7 @@ import hashlib
 import os
 from concurrent.futures import ThreadPoolExecutor
 
+
 class CPUBenchmark:
     def __init__(self, duration=5, threads=None):
         self.duration = duration
@@ -28,14 +29,15 @@ class CPUBenchmark:
 
     def multi_thread(self):
         cores = self.threads
+
         def workload():
             x = 0.0
             for i in range(1, 500):
                 x += math.sqrt(i) * math.log(i + 1) * math.sin(i)
-        start = time.perf_counter()
         total = 0
         with ThreadPoolExecutor(max_workers=cores) as ex:
-            futures = [ex.submit(self._run_timed, workload) for _ in range(cores)]
+            futures = [ex.submit(self._run_timed, workload)
+                       for _ in range(cores)]
             total = sum(f.result() for f in futures)
         return total
 
@@ -51,7 +53,7 @@ class CPUBenchmark:
 
     def encryption(self):
         data = os.urandom(64 * 1024)
-        key  = os.urandom(32)
+        key = os.urandom(32)
         count = 0
         start = time.perf_counter()
         while time.perf_counter() - start < self.duration:

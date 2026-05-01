@@ -1,9 +1,13 @@
 import statistics
+
+
 def aggregate_metrics(metrics_list):
     if not metrics_list:
         return {}
+
     def get_stats(data):
-        if not data: return None
+        if not data:
+            return None
         return {
             "avg": round(statistics.mean(data), 2),
             "min": round(min(data), 2),
@@ -14,9 +18,9 @@ def aggregate_metrics(metrics_list):
     cpu_usage = [m['cpu']['usage'] for m in metrics_list]
     cpu_freq = [m['cpu']['frequency'] for m in metrics_list]
     cpu_temp = [m['cpu']['temp'] for m in metrics_list if m['cpu']['temp'] > 0]
-    
+
     mem_usage = [m['memory']['usage'] for m in metrics_list]
-    
+
     # GPU Aggregation
     gpu_usage = []
     gpu_temp = []
@@ -29,7 +33,7 @@ def aggregate_metrics(metrics_list):
             gpu_vram.extend([m['gpu'][i]['vram_used'] for m in metrics_list])
     disk_read = [m['disk']['read_speed'] for m in metrics_list]
     disk_write = [m['disk']['write_speed'] for m in metrics_list]
-    
+
     net_down = [m['network']['download'] for m in metrics_list]
     net_up = [m['network']['upload'] for m in metrics_list]
     return {

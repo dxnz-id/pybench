@@ -3,6 +3,7 @@ import os
 import random
 import gc
 
+
 class MemoryBenchmark:
     def __init__(self, duration=5):
         self.duration = duration
@@ -33,13 +34,14 @@ class MemoryBenchmark:
 
     def random_latency(self):
         """Ops/s of random 8-byte reads from a 64 MB buffer."""
-        SIZE  = 64 * 1024 * 1024
-        INTS  = SIZE // 8
-        buf   = [random.random() for _ in range(min(INTS, 1_000_000))]  # keep tractable
+        SIZE = 64 * 1024 * 1024
+        INTS = SIZE // 8
+        buf = [random.random()
+               for _ in range(min(INTS, 1_000_000))]  # keep tractable
         count = 0
         start = time.perf_counter()
-        rng   = random.Random()
-        blen  = len(buf)
+        rng = random.Random()
+        blen = len(buf)
         while time.perf_counter() - start < self.duration:
             _ = buf[rng.randint(0, blen - 1)]
             count += 1
@@ -51,8 +53,8 @@ class MemoryBenchmark:
     def copy_speed(self):
         """GB/s of memoryview-based copy."""
         CHUNK = 256 * 1024 * 1024  # 256 MB
-        src   = bytearray(CHUNK)
-        dst   = bytearray(CHUNK)
+        src = bytearray(CHUNK)
+        dst = bytearray(CHUNK)
         total = 0
         start = time.perf_counter()
         while time.perf_counter() - start < self.duration:
@@ -80,23 +82,23 @@ class MemoryBenchmark:
         results = {}
         if verbose:
             print("  Running Sequential Bandwidth test...")
-        results["seq_bw"]   = self.seq_bandwidth()
+        results["seq_bw"] = self.seq_bandwidth()
         if verbose:
             print("  Running Random Access Latency test...")
         results["rand_lat"] = self.random_latency()
         if verbose:
             print("  Running Memory Copy test...")
-        results["copy"]     = self.copy_speed()
+        results["copy"] = self.copy_speed()
         if verbose:
             print("  Running Allocation Stress test...")
-        results["alloc"]    = self.alloc_stress()
+        results["alloc"] = self.alloc_stress()
         if verbose:
             print("  " + "="*50)
         return results
 
     @staticmethod
     def score(results):
-        bw   = results.get("seq_bw",   0) or 0
+        bw = results.get("seq_bw",   0) or 0
         copy = results.get("copy",     0) or 0
-        lat  = results.get("rand_lat", 0) or 0
+        lat = results.get("rand_lat", 0) or 0
         return int(bw * 0.4 + copy * 500 + lat / 5_000)

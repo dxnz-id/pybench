@@ -1,10 +1,10 @@
 import time
 import threading
-import os
 import psutil
 import platform
 import subprocess
 import re
+
 
 class SystemMonitor(threading.Thread):
     def __init__(self, interval=1.0):
@@ -113,22 +113,23 @@ class SystemMonitor(threading.Thread):
         last_net = psutil.net_io_counters()
         last_disk = psutil.disk_io_counters()
         last_time = time.time()
-        
+
         while not self._stop_event.is_set():
             current_time = time.time()
             dt = current_time - last_time
-            if dt <= 0: dt = 0.1
-            
+            if dt <= 0:
+                dt = 0.1
+
             # CPU
             cpu_usage = psutil.cpu_percent(interval=None)
             cpu_freq_obj = psutil.cpu_freq()
             cpu_freq = cpu_freq_obj.current if cpu_freq_obj else 0
             cpu_cores = psutil.cpu_percent(interval=None, percpu=True)
             cpu_temp = self._get_cpu_temp()
-            
+
             # RAM
             mem = psutil.virtual_memory()
-            
+
             # GPU
             gpu_u, gpu_t, gpu_v = self._get_gpu_stats()
             gpu_data = []
@@ -144,14 +145,16 @@ class SystemMonitor(threading.Thread):
 
             # Disk
             curr_disk = psutil.disk_io_counters()
-            disk_read_speed = (curr_disk.read_bytes - last_disk.read_bytes) / dt
-            disk_write_speed = (curr_disk.write_bytes - last_disk.write_bytes) / dt
-            
+            disk_read_speed = (curr_disk.read_bytes -
+                               last_disk.read_bytes) / dt
+            disk_write_speed = (curr_disk.write_bytes -
+                                last_disk.write_bytes) / dt
+
             # Network
             curr_net = psutil.net_io_counters()
             net_download = (curr_net.bytes_recv - last_net.bytes_recv) / dt
             net_upload = (curr_net.bytes_sent - last_net.bytes_sent) / dt
-            
+
             snapshot = {
                 "timestamp": current_time,
                 "cpu": {
@@ -175,13 +178,13 @@ class SystemMonitor(threading.Thread):
                     "upload": net_upload
                 }
             }
-            
+
             self.metrics.append(snapshot)
-            
+
             last_net = curr_net
             last_disk = curr_disk
             last_time = current_time
-            
+
             time.sleep(self.interval)
 
     def get_latest_snapshot(self):
