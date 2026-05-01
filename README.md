@@ -109,6 +109,7 @@ pybench/
 ├── requirements.txt         # Standard pip dependencies
 ├── pyproject.toml           # Modern Python packaging (uv/build)
 ├── uv.lock                  # Lockfile for reproducible environments
+├── CONTRIBUTING.md          # Guidelines for contributing to PyBench
 │
 ├── modules/
 │   ├── cpu_benchmark.py     # Single/multi-thread, compression, encryption, prime sieve
