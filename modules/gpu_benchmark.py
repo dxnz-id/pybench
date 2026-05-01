@@ -96,17 +96,21 @@ class GPUBenchmark:
         except Exception:
             return None
 
-    def run_all(self):
+    def run_all(self, verbose=False):
         results = {}
         if not self.opencl_ok:
-            print("  [WARNING] OpenCL not found or initialization failed. Using CPU fallback for GPU tests.")
+            if verbose:
+                print("  [WARNING] OpenCL not found or initialization failed. Using CPU fallback for GPU tests.")
             pass
-        print("  Running GPU Compute test...")
+        if verbose:
+            print("  Running GPU Compute test...")
         results["compute"]   = self.compute()
-        print("  Running VRAM Bandwidth test...")
+        if verbose:
+            print("  Running VRAM Bandwidth test...")
         results["vram_bw"]   = self.vram_bandwidth()   # may be None
         results["opencl_ok"] = self.opencl_ok
-        print("  "+"="*50)
+        if verbose:
+            print("  " + "="*50)
         return results
 
     @staticmethod

@@ -68,19 +68,25 @@ class CPUBenchmark:
                     s[i*i::i] = bytearray(len(s[i*i::i]))
         return self._run_timed(lambda: sieve(100_000))
 
-    def run_all(self):
+    def run_all(self, verbose=False):
         results = {}
-        print("  Running Single-thread test...")
+        if verbose:
+            print("  Running Single-thread test...")
         results["single"] = self.single_thread()
-        print("  Running Multi-thread test (Stress Test)...")
+        if verbose:
+            print("  Running Multi-thread test (Stress Test)...")
         results["multi"] = self.multi_thread()
-        print("  Running Compression test...")
+        if verbose:
+            print("  Running Compression test...")
         results["compress"] = self.compression()
-        print("  Running Encryption simulation...")
+        if verbose:
+            print("  Running Encryption simulation...")
         results["encrypt"] = self.encryption()
-        print("  Running Prime Sieve test...")
+        if verbose:
+            print("  Running Prime Sieve test...")
         results["prime"] = self.prime_sieve()
-        print("  "+"="*50)
+        if verbose:
+            print("  " + "="*50)
         return results
 
     @staticmethod

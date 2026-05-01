@@ -50,7 +50,7 @@ def run_benchmark_cycle(selections):
             stats_display.active_component = "CPU"
             task = progress.add_task("[cyan]Running CPU Benchmark...", total=100)
             cpu_bench = CPUBenchmark(duration=DEFAULT_DURATION, threads=THREAD_COUNT)
-            results['cpu'] = cpu_bench.run_all()
+            results['cpu'] = cpu_bench.run_all(verbose=VERBOSE)
             progress.update(task, completed=100)
 
         # Memory
@@ -58,7 +58,7 @@ def run_benchmark_cycle(selections):
             stats_display.active_component = "MEMORY"
             task = progress.add_task("[magenta]Running Memory Benchmark...", total=100)
             mem_bench = MemoryBenchmark(duration=DEFAULT_DURATION)
-            results['memory'] = mem_bench.run_all()
+            results['memory'] = mem_bench.run_all(verbose=VERBOSE)
             progress.update(task, completed=100)
 
         # Disk
@@ -66,7 +66,7 @@ def run_benchmark_cycle(selections):
             stats_display.active_component = "DISK"
             task = progress.add_task("[yellow]Running Disk Benchmark...", total=100)
             disk_bench = DiskBenchmark(target_dir=RESULTS_DIR, duration=DEFAULT_DURATION)
-            results['disk'] = disk_bench.run_all()
+            results['disk'] = disk_bench.run_all(verbose=VERBOSE)
             progress.update(task, completed=100)
 
         # GPU
@@ -74,7 +74,7 @@ def run_benchmark_cycle(selections):
             stats_display.active_component = "GPU"
             task = progress.add_task("[green]Running GPU Benchmark...", total=100)
             gpu_bench = GPUBenchmark(duration=DEFAULT_DURATION)
-            results['gpu'] = gpu_bench.run_all()
+            results['gpu'] = gpu_bench.run_all(verbose=VERBOSE)
             progress.update(task, completed=100)
 
     monitor.stop()

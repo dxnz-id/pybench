@@ -76,17 +76,22 @@ class MemoryBenchmark:
         elapsed = time.perf_counter() - start
         return count / elapsed if elapsed > 1e-6 else 0.0
 
-    def run_all(self):
+    def run_all(self, verbose=False):
         results = {}
-        print("  Running Sequential Bandwidth test...")
+        if verbose:
+            print("  Running Sequential Bandwidth test...")
         results["seq_bw"]   = self.seq_bandwidth()
-        print("  Running Random Access Latency test...")
+        if verbose:
+            print("  Running Random Access Latency test...")
         results["rand_lat"] = self.random_latency()
-        print("  Running Memory Copy test...")
+        if verbose:
+            print("  Running Memory Copy test...")
         results["copy"]     = self.copy_speed()
-        print("  Running Allocation Stress test...")
+        if verbose:
+            print("  Running Allocation Stress test...")
         results["alloc"]    = self.alloc_stress()
-        print("  "+"="*50)
+        if verbose:
+            print("  " + "="*50)
         return results
 
     @staticmethod
