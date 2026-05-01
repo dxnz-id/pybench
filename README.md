@@ -23,7 +23,7 @@ PyBench is a lightweight benchmark suite designed to stress-test and profile har
 | Module      | Tests                                                                                                               |
 | ----------- | ------------------------------------------------------------------------------------------------------------------- |
 | **CPU**     | Single-thread math, multi-thread parallel, zlib compression, PBKDF2 encryption, prime sieve                         |
-| **Memory**  | Sequential bandwidth, random access latency, memoryview copy speed, allocation stress                               |
+| **Memory**  | Sequential bandwidth, random access speed, memoryview copy speed, allocation stress                                 |
 | **Disk**    | SEQ1M Q8T1 read/write, RND4K Q32T1 read/write, total IOPS                                                           |
 | **GPU**     | OpenCL compute kernel (sqrt · log · sin), host↔device memory bandwidth                                              |
 | **Monitor** | Real-time CPU %, frequency, RAM usage, GPU %, temperature, VRAM, disk I/O, network — with Avg / Min / Max / Std Dev |
@@ -35,11 +35,19 @@ PyBench is a lightweight benchmark suite designed to stress-test and profile har
 ## Demo
 
 ```text
-╔══════════════════════════════════════╗
-║         PyBench  v1.0                ║
-║  Python Hardware Benchmark Tool      ║
-╚══════════════════════════════════════╝
-
+╭──────────────────────────────────────────────────────────────╮
+│                                                              │
+│ PyBench                                                      │
+│ --------------------------------------------                 │
+│ Available Benchmarks:                                        │
+│ 1. CPU Benchmark                                             │
+│ 2. Memory Benchmark                                          │
+│ 3. Disk Benchmark                                            │
+│ 4. GPU Benchmark                                             │
+│ --------------------------------------------                 │
+│ Enter numbers separated by comma (e.g. 1,3) or 'all' to run. │
+│                                                              │
+╰──────────────────────────────────────────────────────────────╯
 Select benchmarks (e.g. 1,2,3) or 'all' (all): all
 
 ⠋ Running CPU Benchmark...      ████████████████████ 100%
@@ -58,7 +66,7 @@ Benchmark Completed Successfully!
 │ DISK      │ Random Read (Q32T1)     │    40787.11 IOPS │
 │ DISK      │ Random Write (Q32T1)    │    17604.28 IOPS │
 │ MEMORY    │ Sequential Bandwidth    │        4.09 GB/s │
-│ MEMORY    │ Random Access Latency   │  529456.12 Ops/s │
+│ MEMORY    │ Random Access Speed     │     529,456 IOPS │
 │ MEMORY    │ Memory Copy Speed       │        5.63 MB/s │
 │ CPU       │ Multi-thread (Math)     │        9,882 Ops │
 │ CPU       │ Single-thread (Math)    │        4,319 Ops │
@@ -237,7 +245,7 @@ _ = buf2[0]          # read pass
 total_bytes += BUF_SIZE * 2
 ```
 
-**Random Access Latency** — Populates a 64 MB in-memory list of floats, then performs random index reads. Simulates cache miss pressure since accesses do not follow a predictable pattern. Result reported in ops/s.
+**Random Access Speed** — Populates a 64 MB in-memory list of floats, then performs random index reads. Simulates cache miss pressure since accesses do not follow a predictable pattern. Result reported in IOPS.
 
 **Copy Speed** — Uses Python's `memoryview` to copy a 256 MB buffer directly at the memory level, minimizing Python object overhead. Reported in GB/s.
 

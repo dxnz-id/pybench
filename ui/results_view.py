@@ -32,10 +32,10 @@ def display_results(results, scores, metrics, report_path):
         m = results['memory']
         detail_table.add_row("MEMORY", "Sequential Bandwidth",
                              mb_format(m.get('seq_bw', 0)))
-        detail_table.add_row("MEMORY", "Random Access Latency",
-                             f"{m.get('rand_lat', 0):.2f} Ops/s")
+        detail_table.add_row("MEMORY", "Random Access Speed",
+                             f"{m.get('rand_lat', 0):,.0f} IOPS")
         detail_table.add_row("MEMORY", "Memory Copy Speed",
-                             mb_format(m.get('copy', 0)))
+                             f"{m.get('copy', 0):.2f} GB/s")
         detail_table.add_section()
 
     if 'cpu' in results:

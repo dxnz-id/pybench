@@ -30,10 +30,10 @@ class MemoryBenchmark:
             return 0.0
         return (total_bytes / elapsed) / (1024 ** 2)
 
-    # ── Random access latency ─────────────────────────────────────────────────
+    # ── Random access speed ───────────────────────────────────────────────────
 
     def random_latency(self):
-        """Ops/s of random 8-byte reads from a 64 MB buffer."""
+        """IOPS of random 8-byte reads from a 64 MB buffer."""
         SIZE = 64 * 1024 * 1024
         INTS = SIZE // 8
         buf = [random.random()
@@ -84,7 +84,7 @@ class MemoryBenchmark:
             print("  Running Sequential Bandwidth test...")
         results["seq_bw"] = self.seq_bandwidth()
         if verbose:
-            print("  Running Random Access Latency test...")
+            print("  Running Random Access Speed test...")
         results["rand_lat"] = self.random_latency()
         if verbose:
             print("  Running Memory Copy test...")
