@@ -70,16 +70,17 @@ class CPUBenchmark:
 
     def run_all(self):
         results = {}
-        # print("  Running Single-thread test...")
+        print("  Running Single-thread test...")
         results["single"] = self.single_thread()
-        # print("  Running Multi-thread test (Stress Test)...")
+        print("  Running Multi-thread test (Stress Test)...")
         results["multi"] = self.multi_thread()
-        # print("  Running Compression test...")
+        print("  Running Compression test...")
         results["compress"] = self.compression()
-        # print("  Running Encryption simulation...")
+        print("  Running Encryption simulation...")
         results["encrypt"] = self.encryption()
-        # print("  Running Prime Sieve test...")
+        print("  Running Prime Sieve test...")
         results["prime"] = self.prime_sieve()
+        print("  "+"="*50)
         return results
 
     @staticmethod

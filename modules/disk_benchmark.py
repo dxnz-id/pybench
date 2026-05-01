@@ -114,24 +114,25 @@ class DiskBenchmark:
     def run_all(self):
         results = {}
         try:
-            # print(f"  Preparing {self.file_size // 1024 // 1024}MB Test File...")
+            print(f"  Preparing {self.file_size // 1024 // 1024}MB Test File...")
             self._prepare_test_file()
 
-            # print("  Running SEQ1M Q8T1 Write...")
+            print("  Running SEQ1M Q8T1 Write...")
             results["seq_write"]  = self.seq_1m_q8t1(mode="write")
 
-            # print("  Running SEQ1M Q8T1 Read...")
+            print("  Running SEQ1M Q8T1 Read...")
             results["seq_read"]   = self.seq_1m_q8t1(mode="read")
 
-            # print("  Running RND4K Q32T1 Write...")
+            print("  Running RND4K Q32T1 Write...")
             results["rand_write"] = self.rnd_4k_q32t1(mode="write")
 
-            # print("  Running RND4K Q32T1 Read...")
+            print("  Running RND4K Q32T1 Read...")
             results["rand_read"]  = self.rnd_4k_q32t1(mode="read")
 
             results["iops"] = results["rand_read"] + results["rand_write"]
         finally:
             self.cleanup()
+        print("  "+"="*50)
         return results
 
     @staticmethod

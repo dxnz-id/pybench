@@ -78,14 +78,15 @@ class MemoryBenchmark:
 
     def run_all(self):
         results = {}
-        # print("  Running Sequential Bandwidth test...")
+        print("  Running Sequential Bandwidth test...")
         results["seq_bw"]   = self.seq_bandwidth()
-        # print("  Running Random Access Latency test...")
+        print("  Running Random Access Latency test...")
         results["rand_lat"] = self.random_latency()
-        # print("  Running Memory Copy test...")
+        print("  Running Memory Copy test...")
         results["copy"]     = self.copy_speed()
-        # print("  Running Allocation Stress test...")
+        print("  Running Allocation Stress test...")
         results["alloc"]    = self.alloc_stress()
+        print("  "+"="*50)
         return results
 
     @staticmethod
